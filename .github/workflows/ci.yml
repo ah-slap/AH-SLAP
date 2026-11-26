@@ -1,0 +1,86 @@
+name: CI Build and Test
+
+on:
+  push:
+    branches: [develop, main]
+  pull_request:
+    branches: [develop, main]
+
+jobs:
+  check-server:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ahslap_user
+          POSTGRES_PASSWORD: test_password
+          POSTGRES_DB: ahslap_test_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U ahslap_user -d ahslap_test_db"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=5
+
+    defaults:
+      run:
+        working-directory: ./server
+
+    env:
+      NODE_ENV: test
+      PORT: 3001
+      DATABASE_URL: postgres://ahslap_user:test_password@127.0.0.1:5432/ahslap_test_db
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Initialize test database schema
+        run: npm run db:init
+
+      - name: Typecheck and build backend
+        run: npm run build
+
+      - name: Run backend tests (Jest + Supertest)
+        run: npm test
+
+  check-client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install frontend dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Typecheck and build frontend
+        run: npm run build
+
+      - name: Run frontend tests (Vitest)
+        run: npm test
