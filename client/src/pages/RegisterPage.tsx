@@ -1,14 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerUser } from '../services/api';
-
-interface RegisterFieldErrors {
-  fullName?: string;
-  email?: string;
-  phone?: string;
-  password?: string;
-  confirmPassword?: string;
-}
+import {
+  validateRegisterForm,
+  type FormErrors,
+  type RegisterFormValues,
+} from '../utils/validation';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -19,46 +16,45 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [fieldErrors, setFieldErrors] = useState<RegisterFieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<FormErrors<RegisterFormValues>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setServerError(null);
+    e.preventDefault(); // stops the browser's default behavior of refreshing the page when a form is submitted.
+    setServerError(null); // clears any old server error banner from a previous attempt.
 
-    // TODO (after pulling C2's feature/c2-styles-validation):
-    // Replace this basic check with `validateRegisterForm({ fullName, email, phone, password, confirmPassword })`
-    const errors: RegisterFieldErrors = {};
-    if (!fullName.trim()) errors.fullName = 'Full name is required.';
-    if (!email.trim()) errors.email = 'Email is required.';
-    if (!password) errors.password = 'Password is required.';
-    if (password !== confirmPassword) {
-      errors.confirmPassword = 'Passwords do not match.';
+    const trimmedEmail = email.trim();
+    const errors = validateRegisterForm({
+      fullName,
+      email: trimmedEmail,
+      phone: phone.trim() || undefined,
+      password,
+      confirmPassword,
+    });
+
+    if (Object.keys(errors).length > 0) { // checks if any errors were added
+      setFieldErrors(errors); // saves them to state so React displays them
+      return; // stops the function before calling the API.
     }
 
-    if (Object.keys(errors).length > 0) {
-      setFieldErrors(errors);
-      return;
-    }
-
-    setFieldErrors({});
-    setIsSubmitting(true);
+    setFieldErrors({}); // clears old field errors
+    setIsSubmitting(true); // disables the form while waiting
 
     try {
-      await registerUser({
+      await registerUser({ // sends the payload
         fullName: fullName.trim(),
-        email: email.trim(),
+        email: trimmedEmail,
         phone: phone.trim() || undefined,
         password,
       });
-      navigate('/login');
+      navigate('/login'); // redirects the user
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Registration failed. Please try again.';
       setServerError(message);
     } finally {
-      setIsSubmitting(false);
+      setIsSubmitting(false); // runs whether try succeeded or failed, setting setIsSubmitting(false) to re-enable the form.
     }
   };
 
