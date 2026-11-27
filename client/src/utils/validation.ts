@@ -41,3 +41,16 @@ export function validateRegisterForm(values: RegisterFormValues): FormErrors<Reg
 }
 
 
+//Validation function for login form
+export function validateLoginForm(values: LoginFormValues): FormErrors<LoginFormValues> {
+    const errors: FormErrors<LoginFormValues> = {};
+    if(!values.email.trim()) {
+        errors.email = 'Email is required';
+    } else if(!emailRegex.test(values.email)) {
+        errors.email = 'Invalid email format';
+    }
+    if(!values.password) {
+        errors.password = 'Password is required';
+    }
+    return errors;
+}
